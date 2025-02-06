@@ -20,6 +20,8 @@
 	"homepage": "https://github.com/ed-marquez/hedera-testnet-accounts-created-analyzer#readme",
 	"dependencies": {
 		"axios": "^1.7.9",
-		"node-fetch": "^3.3.2"
+		"dotenv": "^16.4.7",
+		"node-fetch": "^3.3.2",
+		"undici": "^7.3.0"
 	}
 }
