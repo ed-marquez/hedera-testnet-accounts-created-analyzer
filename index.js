@@ -3,7 +3,7 @@ import "dotenv/config";
 import { setupDatabase } from "./db/setup.js";
 import { GET_ACCOUNT_CREATE_TXS_QUERY } from "./queries/getAccountCreateTxs.js";
 import { GET_ACCOUNT_ACTIVITY_QUERY } from "./queries/getAccountActivity.js";
-import { executeQuery } from "./functions/queryExecutor.js";
+import { executeQuery, executeQueryWithPagination } from "./functions/queryExecutor.js";
 
 async function getLastExecutionTimestamp(db) {
 	const result = await db.get("SELECT last_timestamp FROM last_execution ORDER BY execution_time DESC LIMIT 1");
@@ -29,13 +29,13 @@ async function saveAccountCreateTxs(db, transactions) {
 
 async function saveAccountActivity(db, transactions) {
 	const stmt = await db.prepare(`
-    INSERT OR IGNORE INTO account_activity 
-    (consensus_timestamp, id, type, result, entity_id, payer_account_id) 
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
+        INSERT OR IGNORE INTO account_activity 
+        (consensus_timestamp, id, type, result, payer_account_id) 
+        VALUES (?, ?, ?, ?, ?)
+    `);
 
 	for (const tx of transactions) {
-		await stmt.run([tx.consensus_timestamp, tx.id, tx.type, tx.result, tx.entity_id, tx.payer_account_id]);
+		await stmt.run([tx.consensus_timestamp, tx.id, tx.type, tx.result, tx.payer_account_id]);
 	}
 	await stmt.finalize();
 }
@@ -59,7 +59,7 @@ async function main() {
 
 		// Get activity for these accounts
 		if (accountIds.length > 0) {
-			const activityResult = await executeQuery(GET_ACCOUNT_ACTIVITY_QUERY, {
+			const activityResult = await executeQueryWithPagination(GET_ACCOUNT_ACTIVITY_QUERY, {
 				accountIds,
 				startTime,
 				endTime: currentTime.toString(),
