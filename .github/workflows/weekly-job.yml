@@ -1,0 +1,30 @@
+name: Weekly Hedera Data Pull
+
+on:
+  schedule:
+    - cron: "0 0 * * 0" # Every Sunday at 00:00 UTC
+  workflow_dispatch: # Allows manual run from GitHub UI
+
+jobs:
+  run-data-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⏬ Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: 📦 Install dependencies
+        run: npm install
+
+      - name: 🔐 Write BigQuery service account key
+        run: echo "${{ secrets.BQ_KEY_JSON }}" > ./keys/bq-key.json
+
+      - name: 🚀 Run ETL script
+        run: node index.js
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ./keys/bq-key.json

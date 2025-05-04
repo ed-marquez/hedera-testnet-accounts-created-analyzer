@@ -1,18 +1,10 @@
 # Hedera Testnet Accounts Analyzer
 
-This repository fetches transaction data from the **Hedera Testnet Mirror Node API**, processes it, and generates a summary CSV.
+This repository fetches new accounts and transaction history from the **Hedera Testnet Mirror Node** using **Hgraph's GraphQL API** to enable analytics and dashboarding.
 
 ## 📂 Folder Structure
 
-```
-/hedera-testnet-accounts-created-analyzer
-│── index.js                          # Main entry point
-│── /functions
-│   ├── fetchAndSaveTransactions.js    # Fetches transactions and saves JSON
-│   ├── countAndAnalyzeTransactions.js # Analyzes transactions and exports CSV
-│── /transactions                      # Stores raw transactions JSON files
-│── /transactions_summary_output        # Stores transaction summary CSV files
-```
+- See [`./prompting/FOLDER_STRUCTURE.MD`](./prompting/FOLDER_STRUCTURE.md)
 
 ## 🧑🏻‍💻 Try It in GitPod
 
@@ -40,23 +32,5 @@ npm install
 ```sh
 node index.js
 ```
-
-## 📊 Output Files
-
-- **Transactions Data:** Stored in `/transactions/YYYY-MM-DD-transactions.json`
-- **Summary Report:** Stored in `/transactions_summary_output/YYYY-MM-DD-transactions_summary.csv`
-
-## 🛠️ Process Overview
-
-1. **Fetch Transactions**
-
-   - Retrieves transactions from Hedera Testnet.
-   - Saves the data in the `/transactions` folder.
-
-2. **Analyze Transactions**
-   - Counts total transactions.
-   - Counts unique transactions by `transaction_id`.
-   - Groups transactions by `YYYY-MM`.
-   - Outputs a CSV report in `/transactions_summary_output`.
 
 ---

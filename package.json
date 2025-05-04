@@ -8,7 +8,8 @@
 	"author": "",
 	"license": "ISC",
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"clean": "node scripts/cleanupTables.js"
 	},
 	"repository": {
 		"type": "git",
@@ -19,11 +20,13 @@
 	},
 	"homepage": "https://github.com/ed-marquez/hedera-testnet-accounts-created-analyzer#readme",
 	"dependencies": {
+		"@google-cloud/bigquery": "^8.0.0",
 		"axios": "^1.7.9",
+		"chalk": "^5.4.1",
 		"dotenv": "^16.4.7",
-		"node-cron": "^3.0.3",
+		"google-auth-library": "^9.15.1",
+		"googleapis": "^148.0.0",
 		"node-fetch": "^3.3.2",
-		"sqlite": "^5.1.1",
-		"sqlite3": "^5.1.7"
+		"uuid": "^11.1.0"
 	}
 }

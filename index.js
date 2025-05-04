@@ -1,97 +1,70 @@
-// index.js
-import "dotenv/config";
-import { setupDatabase } from "./db/setup.js";
-import { GET_ACCOUNT_CREATE_TXS_QUERY } from "./queries/getAccountCreateTxs.js";
-import { GET_ACCOUNT_ACTIVITY_QUERY } from "./queries/getAccountActivity.js";
-import { executeQuery, executeQueryWithPagination } from "./functions/queryExecutor.js";
+import { executeQueryFn } from "./utils/executeQuery.js";
+import { dbOperationsFn } from "./utils/dbOperations.js";
+import { queryAndWriteFn } from "./utils/queryAndWriteToDb.js";
+import { updateJobLogfn } from "./utils/updateJobLog.js";
+import enrichNewAccountsFn from "./utils/enrichNewAccounts.js";
+import enrichTransactionHistoryFn from "./utils/enrichTransactionHistory.js";
+import { GET_ACCOUNTS_QUERY } from "./queries/getNewAccounts.js";
+import { GET_TX_HISTORY_QUERY } from "./queries/getTxHistory.js";
+import config from "./config.js";
+import logger from "./utils/logger.js";
 
-async function getLastExecutionTimestamp(db) {
-	const result = await db.get("SELECT last_timestamp FROM last_execution ORDER BY execution_time DESC LIMIT 1");
-	return result?.last_timestamp || "1706812520644859297"; // Default to Feb 1, 2024
+async function getNewAccountsFn(startTime, endTime, limit, offset) {
+	const variables = { startTime, endTime }; // No pagination needed for this query
+	const data = await executeQueryFn(GET_ACCOUNTS_QUERY, variables);
+	return data.transaction || [];
 }
 
-async function updateLastExecutionTimestamp(db, timestamp) {
-	await db.run("INSERT INTO last_execution (last_timestamp) VALUES (?)", timestamp);
-}
+async function getTxHistoryFn(startTime, endTime, limit, offset) {
+	// Fetch account IDs from new_accounts table to pass to the activity query
+	const bigquery = new (await import("@google-cloud/bigquery")).BigQuery({
+		projectId: config.PROJECT_ID,
+		keyFilename: "./keys/bq-key.json",
+	});
+	const [rows] = await bigquery.dataset(config.DATASET_ID).table(config.TABLES.NEW_ACCOUNTS).getRows();
+	const accountIds = [...new Set(rows.map((row) => row.entity_id))];
 
-async function saveAccountCreateTxs(db, transactions) {
-	const stmt = await db.prepare(`
-    INSERT OR IGNORE INTO account_create_transactions 
-    (consensus_timestamp, id, type, nonce, entity_id) 
-    VALUES (?, ?, ?, ?, ?)
-  `);
-
-	for (const tx of transactions) {
-		await stmt.run([tx.consensus_timestamp, tx.id, tx.type, tx.nonce, tx.entity_id]);
+	if (accountIds.length === 0) {
+		logger.warn("⚠️ No account IDs found for transaction history query.");
+		return [];
 	}
-	await stmt.finalize();
-}
 
-async function saveAccountActivity(db, transactions) {
-	const stmt = await db.prepare(`
-        INSERT OR IGNORE INTO account_activity 
-        (consensus_timestamp, id, type, result, payer_account_id) 
-        VALUES (?, ?, ?, ?, ?)
-    `);
-
-	for (const tx of transactions) {
-		await stmt.run([tx.consensus_timestamp, tx.id, tx.type, tx.result, tx.payer_account_id]);
-	}
-	await stmt.finalize();
+	const variables = { startTime, endTime, limit, offset, accountIds };
+	const data = await executeQueryFn(GET_TX_HISTORY_QUERY, variables);
+	return data.transaction || [];
 }
 
 async function main() {
-	try {
-		const db = await setupDatabase();
-		const startTime = await getLastExecutionTimestamp(db);
-		const currentTime = Date.now() * 1000000; // Convert to nanoseconds
+	logger.info("🚀 Starting Hedera data pipeline");
 
-		// Get new accounts created
-		const accountCreateTxsResult = await executeQuery(GET_ACCOUNT_CREATE_TXS_QUERY, {
-			startTime,
-			endTime: currentTime.toString(),
-		});
+	const { startTime, endTime, isInitial } = await dbOperationsFn();
+	logger.info(`📅 Time Window: ${startTime} → ${endTime} | Initial Pull: ${isInitial}`);
 
-		await saveAccountCreateTxs(db, accountCreateTxsResult.data.transaction);
+	// Step 1: Get and enrich new accounts
+	const rawAccounts = await getNewAccountsFn(startTime, endTime);
+	const enrichedAccounts = await enrichNewAccountsFn(rawAccounts, startTime, endTime);
 
-		// Get all entity_ids from created accounts
-		const accountIds = accountCreateTxsResult.data.transaction.map((tx) => tx.entity_id.toString());
+	// Write enriched accounts to BigQuery
+	const dataset = new (await import("@google-cloud/bigquery")).BigQuery({
+		projectId: config.PROJECT_ID,
+		keyFilename: "./keys/bq-key.json",
+	}).dataset(config.DATASET_ID);
 
-		// Get activity for these accounts
-		if (accountIds.length > 0) {
-			const activityResult = await executeQueryWithPagination(GET_ACCOUNT_ACTIVITY_QUERY, {
-				accountIds,
-				startTime,
-				endTime: currentTime.toString(),
-			});
+	await dataset.table(config.TABLES.NEW_ACCOUNTS).insert(enrichedAccounts);
+	logger.success("✅ New accounts written to BigQuery");
 
-			await saveAccountActivity(db, activityResult.data.transaction);
-		}
+	// Step 2: Get and enrich transaction history with pagination
+	await queryAndWriteFn(getTxHistoryFn, config.TABLES.TX_HISTORY, startTime, endTime, enrichTransactionHistoryFn);
+	logger.success("✅ Transaction history written to BigQuery");
 
-		// Update last execution timestamp
-		await updateLastExecutionTimestamp(db, currentTime.toString());
+	// Step 3: Log the job run
+	await updateJobLogfn({ startTime, endTime, status: "success" });
+	logger.info("📒 Job log updated");
 
-		// Generate reports
-		const activeAccounts = await db.all(`
-      SELECT payer_account_id, COUNT(*) as tx_count 
-      FROM account_activity 
-      WHERE strftime('%Y-%m', datetime(substr(consensus_timestamp, 1, 10), 'unixepoch')) = strftime('%Y-%m', 'now')
-      GROUP BY payer_account_id 
-      HAVING tx_count >= 2
-    `);
-
-		console.log("Active Accounts Report:", activeAccounts);
-	} catch (error) {
-		console.error("Main Error:", error);
-	}
+	logger.success("🎉 ETL job complete");
 }
 
-// // Set up cron job to run weekly
-// import cron from "node-cron";
-// cron.schedule("0 0 * * 0", () => {
-// 	console.log("Running weekly update...");
-// 	main();
-// });
-
-// Initial execution
-main();
+main().catch((err) => {
+	logger.error(`❌ Job failed: ${err.message}`);
+	process.exit(1);
+});
