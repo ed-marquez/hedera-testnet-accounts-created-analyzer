@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: ⏬ Checkout code
+      - name: 📥 Checkout code
         uses: actions/checkout@v3
 
       - name: 🟢 Setup Node.js
@@ -24,7 +24,15 @@ jobs:
       - name: 🔐 Write BigQuery service account key
         run: echo "${{ secrets.BQ_KEY_JSON }}" > ./keys/bq-key.json
 
-      - name: 🚀 Run ETL script
+      - name: ▶️ Run ETL script
         run: node index.js
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ./keys/bq-key.json
+          PROJECT_ID: ${{ vars.PROJECT_ID }}
+          DATASET_ID: ${{ vars.DATASET_ID }}
+          SNAPSHOT_DATASET: ${{ vars.SNAPSHOT_DATASET }}
+          SNAPSHOT_RETENTION_DAYS: ${{ vars.SNAPSHOT_RETENTION_DAYS }}
+          GRAPHQL_ENDPOINT: ${{ vars.GRAPHQL_ENDPOINT }}
+          GRAPHQL_API_KEY: ${{ secrets.GRAPHQL_API_KEY }}
+          PAGE_SIZE: ${{ vars.PAGE_SIZE }}
+          OFFSET: ${{ vars.OFFSET }}

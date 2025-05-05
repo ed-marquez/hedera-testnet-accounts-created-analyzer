@@ -15,6 +15,7 @@ const getCurrentUnixTimestampNs = () => {
 export default {
 	// GraphQL endpoint for Hedera testnet
 	GRAPHQL_ENDPOINT: process.env.GRAPHQL_ENDPOINT,
+	GRAPHQL_API_KEY: process.env.GRAPHQL_API_KEY,
 
 	// BigQuery setup
 	PROJECT_ID: process.env.PROJECT_ID, // Must be set in your environment

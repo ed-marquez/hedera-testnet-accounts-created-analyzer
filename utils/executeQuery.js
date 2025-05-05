@@ -13,7 +13,7 @@ export async function executeQueryFn(query, variables) {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				"x-api-key": process.env.GRAPHQL_API_KEY,
+				"x-api-key": config.GRAPHQL_API_KEY,
 			},
 			body: JSON.stringify({ query, variables }),
 		});
