@@ -28,25 +28,64 @@ async function ensureTable(tableName, schema) {
 	if (!exists) {
 		logger.info(`📄 Creating table '${tableName}'...`);
 		await dataset.createTable(tableName, { schema });
+
+		const newTable = dataset.table(tableName);
+		await waitForTableAvailability(newTable); // wait until table is available
+
+		if (newTable) {
+			logger.success(`✅ Table '${tableName}' created and ready`);
+		} else {
+			logger.error(`❌ Failed to create table '${tableName}'`);
+		}
+		return newTable;
+	} else {
+		logger.info(`📂 Table '${tableName}' already exists — skipping creation`);
 	}
 }
 
+async function waitForTableAvailability(table, retries = 5, delayMs = 1000) {
+	for (let i = 0; i < retries; i++) {
+		try {
+			const [metadata] = await table.getMetadata();
+			if (metadata && metadata.tableReference) {
+				return true;
+			}
+		} catch (err) {
+			if (err.code === 404) {
+				logger.info(`⏳ Waiting for table '${table.id}' to become available (attempt ${i + 1}/${retries})...`);
+				await new Promise((res) => setTimeout(res, delayMs));
+			} else {
+				throw err; // other error, rethrow
+			}
+		}
+	}
+	throw new Error(`Timeout: Table '${table.id}' did not become available.`);
+}
+
 /**
- * Returns the latest `end_time_ns` from the job_log table
+ * Returns the latest successful job's `end_time_ns` from the job_log table
  * or null if this is the first run.
  */
-async function getLastJobTimestampNs() {
-	const table = bigquery.dataset(config.DATASET_ID).table(config.TABLES.JOB_LOG);
+async function getLastSuccessfulJobTimestampNs() {
+	const query = `
+		SELECT end_time_ns
+		FROM \`${config.PROJECT_ID}.${config.DATASET_ID}.${config.TABLES.JOB_LOG}\`
+		WHERE status = 'success'
+		ORDER BY end_time_ns DESC
+		LIMIT 1
+	`;
 
 	try {
-		const [rows] = await table.getRows({
-			maxResults: 1,
-			orderBy: "end_time_ns desc",
-		});
+		const [job] = await bigquery.createQueryJob({ query });
+		const [rows] = await job.getQueryResults();
 
-		return rows[0]?.end_time_ns || null;
+		if (rows.length === 0) {
+			return null;
+		}
+
+		return rows[0].end_time_ns;
 	} catch (err) {
-		logger.warn("⚠️ Unable to query job log table. Assuming initial run.");
+		logger.warn("⚠️ Failed to query job_log for last successful job.");
 		return null;
 	}
 }
@@ -68,14 +107,14 @@ export async function dbOperationsFn() {
 
 	// Add a short delay to allow BigQuery to stabilize after potential table creation
 	logger.info("⏳ Allowing BigQuery a moment to prepare tables...");
-	await new Promise((resolve) => setTimeout(resolve, 5000)); // 5-second delay
+	await new Promise((resolve) => setTimeout(resolve, 10000)); // A few seconds delay
 
-	const endTime = config.DEFAULT_END_TIMESTAMP();
+	const endTime = typeof config.DEFAULT_END_TIMESTAMP === "function" ? config.DEFAULT_END_TIMESTAMP() : config.DEFAULT_END_TIMESTAMP;
 
 	let startTime;
 	let isInitial = false;
 
-	const lastEndTime = await getLastJobTimestampNs();
+	const lastEndTime = await getLastSuccessfulJobTimestampNs();
 	if (!lastEndTime) {
 		startTime = config.INITIAL_START_TIMESTAMP;
 		isInitial = true;
@@ -84,8 +123,6 @@ export async function dbOperationsFn() {
 		startTime = lastEndTime;
 		logger.info(`🕒 Resuming from last end time: ${startTime}`);
 	}
-
-	logger.info(`📅 Time window: ${startTime} → ${endTime}`);
 
 	return {
 		startTime,

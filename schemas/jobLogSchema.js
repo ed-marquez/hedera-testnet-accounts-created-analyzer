@@ -6,5 +6,7 @@ export default [
 	{ name: "end_time_iso", type: "TIMESTAMP", mode: "NULLABLE" },
 	{ name: "status", type: "STRING", mode: "REQUIRED" }, // e.g., "success", "error"
 	{ name: "message", type: "STRING", mode: "NULLABLE" },
+	{ name: "count_accounts_added", type: "INTEGER", mode: "NULLABLE" },
+	{ name: "count_txs_added", type: "INTEGER", mode: "NULLABLE" },
 	{ name: "logged_at", type: "TIMESTAMP", mode: "NULLABLE" },
 ];

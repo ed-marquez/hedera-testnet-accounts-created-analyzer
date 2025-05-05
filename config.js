@@ -21,6 +21,9 @@ export default {
 	DATASET_ID: process.env.DATASET_ID, // Must be set in your environment
 	BQ_LOCATION: DEFAULT_BQ_LOCATION,
 
+	SNAPSHOT_DATASET: process.env.SNAPSHOT_DATASET || "snapshots",
+	SNAPSHOT_RETENTION_DAYS: process.env.SNAPSHOT_RETENTION_DAYS || 21,
+
 	// Table names
 	TABLES: {
 		NEW_ACCOUNTS: "new_accounts",
@@ -30,7 +33,7 @@ export default {
 
 	// Time window defaults (in nanoseconds)
 	INITIAL_START_TIMESTAMP: process.env.START_TIME || DEFAULT_START_TIMESTAMP,
-	DEFAULT_END_TIMESTAMP: getCurrentUnixTimestampNs,
+	DEFAULT_END_TIMESTAMP: process.env.END_TIME || getCurrentUnixTimestampNs(),
 
 	// Pagination
 	PAGE_SIZE: parseInt(process.env.PAGE_SIZE, 10) || DEFAULT_PAGE_SIZE,

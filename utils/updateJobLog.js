@@ -16,28 +16,46 @@ const bigquery = new BigQuery({
  * @param {String} params.endTime - UNIX timestamp in nanoseconds (as string)
  * @param {String} params.status - "success" | "error" | etc.
  * @param {String} [params.message] - Optional error or info message
+ * @param {Number} [params.count_accounts_added] - Number of accounts added
+ * @param {Number} [params.count_txs_added] - Number of transactions added
  */
-export async function updateJobLogfn({ startTime, endTime, status, message = null }) {
+export async function updateJobLogfn({ startTime, endTime, status, message = null, count_accounts_added = null, count_txs_added = null }) {
 	const dataset = bigquery.dataset(config.DATASET_ID);
 	const table = dataset.table(config.TABLES.JOB_LOG);
 
 	const now = new Date();
+	const jobId = uuidv4(); // Generate Job ID once
+
+	// Handle potential BigInt conversion errors gracefully
+	let startTimeIso = null;
+	let endTimeIso = null;
+	try {
+		if (startTime) startTimeIso = new Date(Number(BigInt(startTime) / 1_000_000n));
+		if (endTime) endTimeIso = new Date(Number(BigInt(endTime) / 1_000_000n));
+	} catch (e) {
+		logger.warn(`⚠️ Could not convert start/end timestamps to ISO for job log entry ${jobId}: ${e.message}`);
+	}
 
 	const row = {
-		job_id: uuidv4(),
+		job_id: jobId,
 		start_time_ns: startTime,
 		end_time_ns: endTime,
-		start_time_iso: new Date(Number(startTime) / 1_000_000),
-		end_time_iso: new Date(Number(endTime) / 1_000_000),
+		start_time_iso: startTimeIso,
+		end_time_iso: endTimeIso,
 		status,
 		message,
+		count_accounts_added,
+		count_txs_added,
 		logged_at: now,
 	};
 
 	try {
 		await table.insert([row]);
-		logger.success(`📒 Job log updated (status: ${status})`);
+		logger.info(`📒 Job log updated (status: ${status}, job_id: ${jobId})`);
 	} catch (error) {
-		logger.error(`❌ Failed to update job log: ${error.message}`);
+		logger.error(`❌ Failed to update job log (job_id: ${jobId}): ${error.message}`);
+		if (error.errors) {
+			logger.error("   BigQuery Insert Errors:", JSON.stringify(error.errors, null, 2));
+		}
 	}
 }

@@ -84,6 +84,8 @@ export async function queryAndWriteFn(queryFn, targetTable, startTime, endTime, 
 
 			offset += limit;
 			page++;
+
+			await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay between pages to avoid rate limits
 		}
 
 		logger.info(`🎯 Pipeline complete. Total rows inserted: ${totalInserted}`);

@@ -22,7 +22,7 @@ function nsToISO8601(ns) {
 export default async function enrichNewAccountsFn(newAccounts, startTime, endTime) {
 	logger.info(`🔗 Enriching ${newAccounts.length} accounts with creation method...`);
 
-	const txIdList = [...new Set(newAccounts.map((acc) => acc.id))];
+	const txIdList = [...new Set(newAccounts.map((acc) => acc.id))]; // Get unique transaction IDs from the new_accounts table
 
 	if (txIdList.length === 0) {
 		logger.warn("⚠️ No transaction IDs provided. Skipping enrichment.");

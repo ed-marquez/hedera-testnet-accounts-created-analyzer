@@ -1,5 +1,5 @@
 export const GET_ACCOUNTS_QUERY = `
-query getNewAccounts($startTime: bigint!, $endTime: bigint!) {
+query getNewAccounts($startTime: bigint!, $endTime: bigint!, $limit: Int!, $offset: Int!) {
   transaction(
     where: {
       payer_account_id: {_eq: "2"},
@@ -9,7 +9,9 @@ query getNewAccounts($startTime: bigint!, $endTime: bigint!) {
       nonce: {_gte: 1},
       id: {_neq: "0.0.2@1706812511.019092963"}
     }
-    order_by: {consensus_timestamp: asc}
+    order_by: {consensus_timestamp: asc},
+    limit: $limit,
+    offset: $offset
   ) {
     consensus_timestamp
     consensus_timestamp_iso8601
