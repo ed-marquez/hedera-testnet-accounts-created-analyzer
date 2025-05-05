@@ -68,7 +68,7 @@ async function main() {
 			}
 			// Check if any snapshots are empty
 			const empty = Object.entries(snapshotCounts)
-				.filter(([tbl, cnt]) => cnt === 0 && tbl !== config.TABLES.JOB_LOG)
+				.filter(([tbl, cnt]) => Number(cnt) === 0 && tbl !== config.TABLES.JOB_LOG)
 				.map(([tbl]) => tbl);
 			if (empty.length) {
 				logger.error(`❌ Aborting job: empty snapshot(s) for ${empty.join(", ")}`);
