@@ -2,7 +2,7 @@ name: Weekly Hedera Data Pull
 
 on:
   schedule:
-    - cron: "5 * * * *" # Every hour at minute 5
+    - cron: "0 */2 * * *" # Every 2 hours at minute 0
   workflow_dispatch: # Allows manual run from GitHub UI
 
 jobs:
