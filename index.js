@@ -29,7 +29,7 @@ async function getTxHistoryFn(startTime, endTime, limit, offset) {
 	// Fetch account IDs from new_accounts table to pass to the activity query
 	const bigquery = new (await import("@google-cloud/bigquery")).BigQuery({
 		projectId: config.PROJECT_ID,
-		keyFilename: "./keys/bq-key.json",
+		// keyFilename: "./keys/bq-key.json",
 	});
 	const [rows] = await bigquery.dataset(config.DATASET_ID).table(config.TABLES.NEW_ACCOUNTS).getRows(); // Get rows from the new_accounts table
 	const accountIds = [...new Set(rows.map((row) => row.entity_id))]; // Get unique account IDs from the new_accounts table

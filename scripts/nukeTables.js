@@ -7,7 +7,7 @@ import logger from "../utils/logger.js";
 
 const bigquery = new BigQuery({
 	projectId: config.PROJECT_ID,
-	keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || "./keys/bq-key.json",
+	// keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || "./keys/bq-key.json",
 });
 
 const tablesToDelete = [config.TABLES.NEW_ACCOUNTS, config.TABLES.TX_HISTORY, config.TABLES.JOB_LOG];

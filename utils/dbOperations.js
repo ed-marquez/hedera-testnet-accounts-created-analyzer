@@ -7,7 +7,7 @@ import logger from "./logger.js";
 
 const bigquery = new BigQuery({
 	projectId: config.PROJECT_ID,
-	keyFilename: "./keys/bq-key.json",
+	// keyFilename: "./keys/bq-key.json",
 });
 
 async function ensureDataset() {

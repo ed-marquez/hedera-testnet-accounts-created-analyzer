@@ -11,7 +11,7 @@ if (!config.SNAPSHOT_DATASET) {
 
 const bigquery = new BigQuery({
 	projectId: config.PROJECT_ID,
-	keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || "./keys/bq-key.json",
+	// keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || "./keys/bq-key.json",
 });
 
 // Create interface for user confirmation
