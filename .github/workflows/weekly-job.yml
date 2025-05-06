@@ -24,7 +24,7 @@ jobs:
       - name: 🔐 Write BigQuery service account key
         run: |
           mkdir -p ./keys
-          echo "${{ secrets.BQ_KEY_BASE64 }}" | base64 -d > ./keys/bq-key.json
+          echo "${{ secrets.BQ_KEY_BASE64 }}" | base64 --decode > ./keys/bq-key.json
           # echo "${{ secrets.BQ_KEY_JSON }}" > ./keys/bq-key.json
         shell: bash
 
@@ -41,3 +41,6 @@ jobs:
           PAGE_SIZE: ${{ vars.PAGE_SIZE }}
           OFFSET: ${{ vars.OFFSET }}
           WINDOW_SIZE_NS: ${{ vars.WINDOW_SIZE_NS }}
+
+      - name: Check decoded key format
+        run: head ./keys/bq-key.json
