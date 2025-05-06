@@ -97,12 +97,12 @@ export async function createSnapshotBeforeWriteFn(baseTableName) {
 		`;
 
 		await bigquery.query({ query });
-		logger.info(`✅ Snapshot created: ${snapshotTablePath}`);
 
 		// Check snapshot row count AFTER creation
 		const snapshotTable = bigquery.dataset(config.SNAPSHOT_DATASET).table(snapshotTableName);
 		const [snapshotMetadata] = await snapshotTable.getMetadata();
 		const snapshotRowCount = Number(snapshotMetadata.numRows) || 0;
+		logger.info(`✅ Snapshot created: ${snapshotTablePath}`);
 		logger.info(`ℹ️ Snapshot ${snapshotTablePath} contains ${snapshotRowCount} rows.`);
 
 		if (parseInt(snapshotRowCount, 10) === 0 && parseInt(baseRowCount, 10) > 0) {

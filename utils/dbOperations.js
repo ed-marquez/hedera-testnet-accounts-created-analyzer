@@ -107,23 +107,30 @@ export async function dbOperationsFn() {
 
 	// Add a short delay to allow BigQuery to stabilize after potential table creation
 	logger.info("⏳ Allowing BigQuery a moment to prepare tables...");
-	await new Promise((resolve) => setTimeout(resolve, 10000)); // A few seconds delay
-
-	const endTime = typeof config.DEFAULT_END_TIMESTAMP === "function" ? config.DEFAULT_END_TIMESTAMP() : config.DEFAULT_END_TIMESTAMP;
+	await new Promise((resolve) => setTimeout(resolve, 5000)); // A few seconds delay
 
 	let startTime;
 	let isInitial = false;
 
-	const lastEndTime = await getLastSuccessfulJobTimestampNs();
-	if (!lastEndTime) {
-		startTime = config.INITIAL_START_TIMESTAMP;
+	const lastJobEndTime = await getLastSuccessfulJobTimestampNs();
+
+	if (!lastJobEndTime) {
 		isInitial = true;
+		startTime = config.INITIAL_START_TIMESTAMP;
 		logger.info(`🕒 No previous job found. Using default start: ${startTime}`);
 	} else {
-		startTime = lastEndTime;
+		startTime = lastJobEndTime;
 		logger.info(`🕒 Resuming from last end time: ${startTime}`);
 	}
+	// Calculate the end time for the new job
+	const endTime = (BigInt(startTime) + BigInt(config.WINDOW_SIZE_NS)).toString();
 
+	// Cap endTime at the current time (in nanoseconds)
+	const nowNs = config.getCurrentUnixTimestampNs ? config.getCurrentUnixTimestampNs() : (BigInt(Date.now()) * 1_000_000n).toString();
+	if (BigInt(endTime) > BigInt(nowNs)) {
+		logger.info(`⏳ Capping endTime to current time: ${nowNs}`);
+		endTime = nowNs;
+	}
 	return {
 		startTime,
 		endTime,

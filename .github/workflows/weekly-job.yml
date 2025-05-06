@@ -2,7 +2,7 @@ name: Weekly Hedera Data Pull
 
 on:
   schedule:
-    - cron: "0 0 * * 0" # Every Sunday at 00:00 UTC
+    - cron: "5 * * * *" # Every hour at minute 5
   workflow_dispatch: # Allows manual run from GitHub UI
 
 jobs:
@@ -36,3 +36,4 @@ jobs:
           GRAPHQL_API_KEY: ${{ secrets.GRAPHQL_API_KEY }}
           PAGE_SIZE: ${{ vars.PAGE_SIZE }}
           OFFSET: ${{ vars.OFFSET }}
+          WINDOW_SIZE_NS: ${{ vars.WINDOW_SIZE_NS }}

@@ -116,10 +116,12 @@ async function main() {
 	} catch (err) {
 		logger.error(`❌ Job failed: ${err.message}`);
 
-		// Restore tables (excluding job_log) from most recent snapshot
-		const tablesToRestore = Object.values(config.TABLES).filter((tableName) => tableName !== config.TABLES.JOB_LOG);
-		for (const table of tablesToRestore) {
-			await restoreFromLatestSnapshotFn(table);
+		// Restore tables (excluding job_log) from most recent snapshot if not initial pull
+		if (!isInitial) {
+			const tablesToRestore = Object.values(config.TABLES).filter((tableName) => tableName !== config.TABLES.JOB_LOG);
+			for (const table of tablesToRestore) {
+				await restoreFromLatestSnapshotFn(table);
+			}
 		}
 		// Log failure
 		await updateJobLogfn({ startTime, endTime, status: "error", message: err.message });

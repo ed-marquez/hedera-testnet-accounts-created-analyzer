@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const DEFAULT_START_TIMESTAMP = "1706745600000000000"; // Thursday, February 1, 2024
+const DEFAULT_WINDOW_SIZE_NS = String(24 * 60 * 60 * 1_000_000_000); // 24 hours in nanoseconds
 const DEFAULT_PAGE_SIZE = 10000;
 const DEFAULT_OFFSET = 0;
 const DEFAULT_BQ_LOCATION = "US";
@@ -23,7 +24,7 @@ export default {
 	BQ_LOCATION: DEFAULT_BQ_LOCATION,
 
 	SNAPSHOT_DATASET: process.env.SNAPSHOT_DATASET || "snapshots",
-	SNAPSHOT_RETENTION_DAYS: process.env.SNAPSHOT_RETENTION_DAYS || 21,
+	SNAPSHOT_RETENTION_DAYS: process.env.SNAPSHOT_RETENTION_DAYS || 0.125,
 
 	// Table names
 	TABLES: {
@@ -34,7 +35,8 @@ export default {
 
 	// Time window defaults (in nanoseconds)
 	INITIAL_START_TIMESTAMP: process.env.START_TIME || DEFAULT_START_TIMESTAMP,
-	DEFAULT_END_TIMESTAMP: process.env.END_TIME || getCurrentUnixTimestampNs(),
+	WINDOW_SIZE_NS: process.env.WINDOW_SIZE_NS || DEFAULT_WINDOW_SIZE_NS,
+	getCurrentUnixTimestampNs,
 
 	// Pagination
 	PAGE_SIZE: parseInt(process.env.PAGE_SIZE, 10) || DEFAULT_PAGE_SIZE,
