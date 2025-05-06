@@ -4,5 +4,4 @@
 /database.sqlite
 /archive
 /keys/bq-key.json
-/keys/bq-key-base64.txt
 /keys/service-account.json
