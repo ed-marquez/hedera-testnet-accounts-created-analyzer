@@ -22,7 +22,9 @@ jobs:
         run: npm install
 
       - name: 🔐 Write BigQuery service account key
-        run: echo "${{ secrets.BQ_KEY_JSON }}" > ./keys/bq-key.json
+        run: |
+          mkdir -p ./keys
+          echo "${{ secrets.BQ_KEY_JSON }}" > ./keys/bq-key.json
 
       - name: ▶️ Run ETL script
         run: node index.js
