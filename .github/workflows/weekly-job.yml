@@ -24,8 +24,7 @@ jobs:
       - name: 🔐 Write BigQuery service account key
         run: |
           mkdir -p ./keys
-          echo "${{ secrets.BQ_KEY_BASE64 }}" | base64 --decode > ./keys/bq-key.json
-          # echo "${{ secrets.BQ_KEY_JSON }}" > ./keys/bq-key.json
+          echo "${{ secrets.BQ_KEY_JSON }}" > ./keys/bq-key.json
         shell: bash
 
       - name: ▶️ Run ETL script
