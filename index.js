@@ -58,20 +58,22 @@ async function main() {
 	logger.info(`1️⃣ Is Initial Pull: ${isInitial}`);
 	console.log(`\n`);
 
-	let snapshotCounts = {};
+	let snapshotRowDetails = {};
+
 	try {
 		// Step 0: Create pre-job snapshots if not initial pull
 		if (!isInitial) {
 			// Create snapshots for all tables
 			for (const table of Object.values(config.TABLES)) {
-				snapshotCounts[table] = await createSnapshotBeforeWriteFn(table);
+				const { baseRowCount, snapshotRowCount } = await createSnapshotBeforeWriteFn(table);
+				snapshotRowDetails[table] = { baseRowCount, snapshotRowCount };
 			}
-			// Check if any snapshots are empty
-			const empty = Object.entries(snapshotCounts)
-				.filter(([tbl, cnt]) => Number(cnt) === 0 && tbl !== config.TABLES.JOB_LOG)
+			// Check for mismatched row counts between base table and snapshot
+			const mismatched = Object.entries(snapshotRowDetails)
+				.filter(([tbl, counts]) => tbl !== config.TABLES.JOB_LOG && counts.baseRowCount !== counts.snapshotRowCount)
 				.map(([tbl]) => tbl);
-			if (empty.length) {
-				logger.error(`❌ Aborting job: empty snapshot(s) for ${empty.join(", ")}`);
+			if (mismatched.length) {
+				logger.error(`❌ Aborting job: row count mismatch in base table & snapshot(s) for ${mismatched.join(", ")}`);
 				process.exit(1);
 			}
 		} else {
@@ -118,9 +120,23 @@ async function main() {
 
 		// Restore tables (excluding job_log) from most recent snapshot if not initial pull
 		if (!isInitial) {
-			const tablesToRestore = Object.values(config.TABLES).filter((tableName) => tableName !== config.TABLES.JOB_LOG);
+			const tablesToRestore = Object.values(config.TABLES).filter(
+				(tableName) =>
+					tableName !== config.TABLES.JOB_LOG &&
+					snapshotRowDetails[tableName] &&
+					snapshotRowDetails[tableName].baseRowCount === snapshotRowDetails[tableName].snapshotRowCount
+			);
 			for (const table of tablesToRestore) {
 				await restoreFromLatestSnapshotFn(table);
+			}
+			// Warn for tables not restored
+			const notRestored = Object.values(config.TABLES).filter(
+				(tableName) =>
+					tableName !== config.TABLES.JOB_LOG &&
+					(!snapshotRowDetails[tableName] || snapshotRowDetails[tableName].baseRowCount !== snapshotRowDetails[tableName].snapshotRowCount)
+			);
+			for (const table of notRestored) {
+				logger.warn(`⚠️ Skipped restoring ${table} due to row count mismatch between base and snapshot.`);
 			}
 		}
 		// Log failure

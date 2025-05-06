@@ -75,7 +75,6 @@ export async function createSnapshotBeforeWriteFn(baseTableName) {
 
 	try {
 		// Check base table row count BEFORE creating snapshot
-		// before CREATE SNAPSHOT …
 		const countSql = `
 		   SELECT COUNT(*) AS cnt
 		   FROM \`${fullBaseTableId}\`
@@ -111,7 +110,7 @@ export async function createSnapshotBeforeWriteFn(baseTableName) {
 		} else if (parseInt(snapshotRowCount, 10) === 0) {
 			logger.warn(`⚠️ Snapshot ${snapshotTablePath} was created empty (base table reported 0 rows before creation).`);
 		}
-		return snapshotRowCount;
+		return { baseRowCount, snapshotRowCount };
 	} catch (error) {
 		logger.error(`❌ Failed to create snapshot for ${baseTableName}: ${error.message}`);
 		// Optionally check if base table existed if error occurs
