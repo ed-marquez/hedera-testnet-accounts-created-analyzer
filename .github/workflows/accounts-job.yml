@@ -30,7 +30,7 @@ jobs:
         run: npm install
 
       - name: ▶️ Run ETL script
-        run: index_accounts.js
+        run: npm run accounts
         env:
           PIPELINE_TARGET: ACCOUNTS
           PROJECT_ID: ${{ vars.PROJECT_ID }}
