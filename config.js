@@ -6,6 +6,7 @@ const DEFAULT_WINDOW_SIZE_NS = String(24 * 60 * 60 * 1_000_000_000); // 24 hours
 const DEFAULT_PAGE_SIZE = 10000;
 const DEFAULT_OFFSET = 0;
 const DEFAULT_BQ_LOCATION = "US";
+const TARGET = process.env.PIPELINE_TARGET || "ACCOUNTS"; // or "TRANSACTIONS"
 
 // Utility to get current time in nanoseconds
 const getCurrentUnixTimestampNs = () => {
@@ -26,11 +27,18 @@ export default {
 	SNAPSHOT_DATASET: process.env.SNAPSHOT_DATASET || "snapshots",
 	SNAPSHOT_RETENTION_DAYS: process.env.SNAPSHOT_RETENTION_DAYS || 0.125,
 
+	PIPELINE_TARGET: TARGET,
+
 	// Table names
 	TABLES: {
+		// table names for each pipeline target
 		NEW_ACCOUNTS: "new_accounts",
 		TX_HISTORY: "transaction_history",
-		JOB_LOG: "job_log",
+		// job log tables for each pipeline target
+		JOB_LOG_ACCOUNTS: "job_log_accounts",
+		JOB_LOG_TRANSACTIONS: "job_log_transactions",
+		// dynamic alias — code continues to read from TABLES.JOB_LOG:
+		JOB_LOG: TARGET === "ACCOUNTS" ? "job_log_accounts" : "job_log_transactions",
 	},
 
 	// Time window defaults (in nanoseconds)

@@ -2,7 +2,8 @@ import { BigQuery } from "@google-cloud/bigquery";
 import config from "../config.js";
 import newAccountsSchema from "../schemas/newAccountsSchema.js";
 import txHistorySchema from "../schemas/txHistorySchema.js";
-import jobLogSchema from "../schemas/jobLogSchema.js";
+import jobLogAccountsSchema from "../schemas/jobLogAccountsSchema.js";
+import jobLogTransactionsSchema from "../schemas/jobLogTransactionsSchema.js";
 import logger from "./logger.js";
 
 const bigquery = new BigQuery({
@@ -99,11 +100,13 @@ export async function dbOperationsFn() {
 
 	await ensureDataset();
 
-	await Promise.all([
-		await ensureTable(config.TABLES.NEW_ACCOUNTS, newAccountsSchema),
-		await ensureTable(config.TABLES.TX_HISTORY, txHistorySchema),
-		await ensureTable(config.TABLES.JOB_LOG, jobLogSchema),
-	]);
+	if (config.PIPELINE_TARGET === "ACCOUNTS") {
+		await ensureTable(config.TABLES.NEW_ACCOUNTS, newAccountsSchema);
+		await ensureTable(config.TABLES.JOB_LOG, jobLogAccountsSchema);
+	} else {
+		await ensureTable(config.TABLES.TX_HISTORY, txHistorySchema);
+		await ensureTable(config.TABLES.JOB_LOG, jobLogTransactionsSchema);
+	}
 
 	// Add a short delay to allow BigQuery to stabilize after potential table creation
 	logger.info("⏳ Allowing BigQuery a moment to prepare tables...");
@@ -123,7 +126,7 @@ export async function dbOperationsFn() {
 		logger.info(`🕒 Resuming from last end time: ${startTime}`);
 	}
 	// Calculate the end time for the new job
-	const endTime = (BigInt(startTime) + BigInt(config.WINDOW_SIZE_NS)).toString();
+	let endTime = (BigInt(startTime) + BigInt(config.WINDOW_SIZE_NS)).toString();
 
 	// Cap endTime at the current time (in nanoseconds)
 	const nowNs = config.getCurrentUnixTimestampNs ? config.getCurrentUnixTimestampNs() : (BigInt(Date.now()) * 1_000_000n).toString();

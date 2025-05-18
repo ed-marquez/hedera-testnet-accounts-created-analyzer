@@ -7,6 +7,7 @@ function mapAmountToCreationMethod(amount) {
 		case 10000000000:
 			return "Faucet";
 		case 100000000000:
+		case 1000000000000:
 			return "Portal";
 		default:
 			return "Unknown";

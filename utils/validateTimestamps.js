@@ -23,7 +23,7 @@ async function getTableTimestampRange(tableName) {
 async function getJobLogSuccessRange() {
 	const query = `
 		SELECT
-			MIN(CAST(start_time_ns AS INT64)) as min_ts,
+			MIN(CAST(start_time_ns AS INT64)) as min_ts
 		FROM \`${config.PROJECT_ID}.${config.DATASET_ID}.${config.TABLES.JOB_LOG}\`
 		WHERE status = 'success'
 	`;
@@ -33,32 +33,39 @@ async function getJobLogSuccessRange() {
 }
 
 export async function validateTimestampsAcrossTablesFn(currentJobEndtimeStr) {
-	logger.info("🔍 Validating timestamp ranges in cumulative tables...");
+	logger.info("🔍 Validating timestamp range for pipeline…");
 
+	// Determine which data table to check based on the pipeline target
+	const tableToCheck = config.PIPELINE_TARGET === "ACCOUNTS" ? config.TABLES.NEW_ACCOUNTS : config.TABLES.TX_HISTORY;
+
+	// 1️⃣ Fetch the last successful job’s start_time_ns
 	const jobRange = await getJobLogSuccessRange();
 	if (!jobRange.min_ts || !currentJobEndtimeStr) {
 		logger.warn("⚠️ No successful jobs found to validate against.");
 		return true;
 	}
-	const jobRangeMinTs = BigInt(jobRange.min_ts);
-	const currentJobEndtimeBigInt = BigInt(currentJobEndtimeStr);
+	const jobMinTs = BigInt(jobRange.min_ts);
+	const jobEndTs = BigInt(currentJobEndtimeStr);
 
-	const tables = [config.TABLES.NEW_ACCOUNTS, config.TABLES.TX_HISTORY];
 	let isValid = true;
 
-	for (const table of tables) {
-		const tableRange = await getTableTimestampRange(table);
-		const tableRangeMinTs = BigInt(tableRange.min_ts);
-		const tableRangeMaxTs = BigInt(tableRange.max_ts);
+	// 2️⃣ Fetch the min/max consensus_timestamp from the data table
+	const tableRange = await getTableTimestampRange(tableToCheck);
+	if (!tableRange?.min_ts || !tableRange?.max_ts) {
+		logger.warn(`⚠️ No rows found in ${tableToCheck} to validate.`);
+		return true;
+	}
+	const tableMinTs = BigInt(tableRange.min_ts);
+	const tableMaxTs = BigInt(tableRange.max_ts);
 
-		if (tableRangeMinTs < jobRangeMinTs || tableRangeMaxTs > currentJobEndtimeBigInt) {
-			logger.error(
-				`❌ Timestamp out of bounds in '${table}': [${tableRange.min_ts}, ${tableRange.max_ts}] vs [${jobRange.min_ts}, ${currentJobEndtimeBigInt}]`
-			);
-			isValid = false;
-		} else {
-			logger.success(`✅ '${table}' timestamps are valid: [${tableRange.min_ts}, ${tableRange.max_ts}]`);
-		}
+	// 3️⃣ Assert that the table’s timestamps fall within [jobMinTs, jobEndTs]
+	if (tableMinTs < jobMinTs || tableMaxTs > jobEndTs) {
+		logger.error(
+			`❌ Timestamp out of bounds in '${tableToCheck}': [${tableRange.min_ts}, ${tableRange.max_ts}] vs [${jobRange.min_ts}, ${currentJobEndtimeStr}]`
+		);
+		isValid = false;
+	} else {
+		logger.success(`✅ '${tableToCheck}' timestamps are valid: [${tableRange.min_ts}, ${tableRange.max_ts}]`);
 	}
 
 	return isValid;

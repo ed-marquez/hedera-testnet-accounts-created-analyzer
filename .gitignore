@@ -3,5 +3,6 @@
 .DS_Store
 /database.sqlite
 /archive
+/keys
 /keys/bq-key.json
 /keys/service-account.json

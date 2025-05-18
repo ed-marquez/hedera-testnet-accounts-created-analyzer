@@ -9,8 +9,10 @@
 	"license": "ISC",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1",
-		"delete-tables": "node scripts/nukeTables.js",
-		"delete-snapshots": "node scripts/nukeSnapshots.js"
+		"start:accounts": "PIPELINE_TARGET=ACCOUNTS node index_accounts.js",
+		"start:transactions": "PIPELINE_TARGET=TRANSACTIONS node index_transactions.js",
+		"accounts": "npm run start:accounts",
+		"transactions": "npm run start:transactions"
 	},
 	"repository": {
 		"type": "git",

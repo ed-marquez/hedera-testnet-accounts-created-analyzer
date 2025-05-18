@@ -1,8 +1,8 @@
-# name: Weekly Hedera Data Pull
+# name: Hedera Testnet Accounts Pipeline
 
 # on:
 #   schedule:
-#     - cron: "0 */2 * * *" # Every 2 hours at minute 0
+#     - cron: "0 9 * * *" # Every day at 9:00 AM UTC
 #   workflow_dispatch: # Allows manual run from GitHub UI
 
 # jobs:
@@ -30,8 +30,9 @@
 #         run: npm install
 
 #       - name: ▶️ Run ETL script
-#         run: node index.js
+#         run: index_accounts.js
 #         env:
+#           PIPELINE_TARGET: TRANSACTIONS
 #           PROJECT_ID: ${{ vars.PROJECT_ID }}
 #           DATASET_ID: ${{ vars.DATASET_ID }}
 #           SNAPSHOT_DATASET: ${{ vars.SNAPSHOT_DATASET }}

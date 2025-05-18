@@ -2,9 +2,7 @@ import { executeQueryFn } from "./utils/executeQuery.js";
 import { dbOperationsFn } from "./utils/dbOperations.js";
 import { queryAndWriteFn } from "./utils/queryAndWriteToDb.js";
 import { updateJobLogfn } from "./utils/updateJobLog.js";
-import enrichNewAccountsFn from "./utils/enrichNewAccounts.js";
 import enrichTransactionHistoryFn from "./utils/enrichTransactionHistory.js";
-import { GET_ACCOUNTS_QUERY } from "./queries/getNewAccounts.js";
 import { GET_TX_HISTORY_QUERY } from "./queries/getTxHistory.js";
 import { createSnapshotBeforeWriteFn, pruneSnapshotsFn, restoreFromLatestSnapshotFn } from "./utils/bqSnapshotUtils.js";
 import { validateTimestampsAcrossTablesFn } from "./utils/validateTimestamps.js";
@@ -12,18 +10,11 @@ import { validateTimestampsAcrossTablesFn } from "./utils/validateTimestamps.js"
 import config from "./config.js";
 import logger from "./utils/logger.js";
 
-async function getNewAccountsFn(startTime, endTime, limit, offset) {
-	const variables = { startTime, endTime, limit, offset };
-	const data = await executeQueryFn(GET_ACCOUNTS_QUERY, variables);
-	return data.transaction || [];
+// Guard: only run under TRANSACTIONS mode
+if (config.PIPELINE_TARGET !== "TRANSACTIONS") {
+	console.error("→ Wrong pipeline target; expected TRANSACTIONS");
+	process.exit(1);
 }
-
-// Wraps enrichNewAccountsFn with time window context
-const enrichAccountsWithWindow = (startTime, endTime) => {
-	return async (batch) => {
-		return await enrichNewAccountsFn(batch, startTime, endTime);
-	};
-};
 
 async function getTxHistoryFn(startTime, endTime, limit, offset) {
 	// Fetch account IDs from new_accounts table to pass to the activity query
@@ -46,6 +37,7 @@ async function getTxHistoryFn(startTime, endTime, limit, offset) {
 
 async function main() {
 	logger.info(`🚀 Starting Hedera data pipeline\n`);
+	const tablesForPipeline = [config.TABLES.TX_HISTORY, config.TABLES.JOB_LOG];
 
 	const { startTime, endTime, isInitial } = await dbOperationsFn();
 
@@ -64,7 +56,7 @@ async function main() {
 		// Step 0: Create pre-job snapshots if not initial pull
 		if (!isInitial) {
 			// Create snapshots for all tables
-			for (const table of Object.values(config.TABLES)) {
+			for (const table of tablesForPipeline) {
 				const { baseRowCount, snapshotRowCount } = await createSnapshotBeforeWriteFn(table);
 				snapshotRowDetails[table] = { baseRowCount, snapshotRowCount };
 			}
@@ -81,16 +73,6 @@ async function main() {
 		}
 		console.log(`\n`);
 
-		// Step 1: Paginated fetch + enrich + write of new accounts
-		const countNewAccountsAdded = await queryAndWriteFn(
-			getNewAccountsFn,
-			config.TABLES.NEW_ACCOUNTS,
-			startTime,
-			endTime,
-			enrichAccountsWithWindow(startTime, endTime)
-		);
-		logger.success(`✅ New accounts written to BigQuery\n`);
-
 		// Step 2: Paginated fetch + enrich + write of transaction history
 		const countTxAdded = await queryAndWriteFn(getTxHistoryFn, config.TABLES.TX_HISTORY, startTime, endTime, enrichTransactionHistoryFn);
 		logger.success(`✅ Transaction history written to BigQuery\n`);
@@ -104,23 +86,23 @@ async function main() {
 		}
 
 		// Step 4: Log the job run
-		await updateJobLogfn({ startTime, endTime, status: "success", count_accounts_added: countNewAccountsAdded, count_txs_added: countTxAdded });
-		logger.info(`📒 Job log updated (Accounts added: ${countNewAccountsAdded}, Transactions added: ${countTxAdded})\n`);
+		await updateJobLogfn({ startTime, endTime, status: "success", count_txs_added: countTxAdded });
+		logger.info(`📒 Job log updated (Transactions added: ${countTxAdded})\n`);
 
 		// Step 5: Prune old BigQuery table snapshots if not initial pull
 		if (!isInitial) {
-			for (const table of Object.values(config.TABLES)) {
+			for (const table of tablesForPipeline) {
 				await pruneSnapshotsFn(table);
 			}
 		}
 
-		logger.success(`🎉 ETL job complete`);
+		logger.success(`🎉 Transactions pipeline complete`);
 	} catch (err) {
-		logger.error(`❌ Job failed: ${err.message}`);
+		logger.error(`❌ Transactions pipeline failed: ${err.message}`);
 
 		// Restore tables (excluding job_log) from most recent snapshot if not initial pull
 		if (!isInitial) {
-			const tablesToRestore = Object.values(config.TABLES).filter(
+			const tablesToRestore = tablesForPipeline.filter(
 				(tableName) =>
 					tableName !== config.TABLES.JOB_LOG &&
 					snapshotRowDetails[tableName] &&
@@ -130,7 +112,7 @@ async function main() {
 				await restoreFromLatestSnapshotFn(table);
 			}
 			// Warn for tables not restored
-			const notRestored = Object.values(config.TABLES).filter(
+			const notRestored = tablesForPipeline.filter(
 				(tableName) =>
 					tableName !== config.TABLES.JOB_LOG &&
 					(!snapshotRowDetails[tableName] || snapshotRowDetails[tableName].baseRowCount !== snapshotRowDetails[tableName].snapshotRowCount)
