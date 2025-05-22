@@ -2,7 +2,7 @@
 
 ## 🎯 Goal
 
-Automate the extraction, enrichment, and storage of Hedera Testnet account and transaction data using GraphQL. Store results in Google BigQuery and visualize them via Google Looker Studio. The application runs weekly via GitHub Actions.
+Automate the extraction, enrichment, and storage of Hedera Testnet account and transaction data using GraphQL. Store results in Google BigQuery and visualize them via Google Looker Studio. Two separate pipelines now run via scheduled GitHub Actions. The accounts pipeline is already active and keeps the `new_accounts` table current each day.
 
 ## 🔁 Core Flow
 
@@ -27,12 +27,12 @@ Automate the extraction, enrichment, and storage of Hedera Testnet account and t
        - `100000000000` → `"Portal"`
        - Any other → `"Unknown"`
 
-4. **Query transaction history** for all known accounts in the DB.
+4. **Query transaction history** for all accounts stored in `new_accounts`.
 
 5. **Write data to BigQuery**:
    - Append `new_accounts` table with enriched rows.
    - Append `transaction_history` table.
-   - Update `job_log` with the current run’s metadata.
+   - Update the appropriate job log table with the current run’s metadata.
 
 ## 🧱 Tech Stack
 
@@ -40,31 +40,30 @@ Automate the extraction, enrichment, and storage of Hedera Testnet account and t
 - **BigQuery** (data warehouse)
 - **GraphQL** (data source)
 - **Looker Studio** (visualization)
-- **GitHub Actions** (weekly job scheduler)
+- **GitHub Actions** (scheduled jobs)
 
 ## 🗃️ BigQuery Tables
 
 - `new_accounts`: Includes account info, initial transfer amount, and creation method
 - `transaction_history`: All transactions tied to known accounts
-- `job_log`: Records job run start time, end time, and status
+- `job_log_accounts`: Records account pipeline job runs
+- `job_log_transactions`: Records transaction pipeline job runs
 
 ## ⏱️ Schedule
 
-- GitHub Actions workflow triggers **weekly**
-- Uses service account key + cron scheduling
+- **Accounts pipeline** runs daily at 10:00 AM UTC via GitHub Actions (already running)
+- **Transactions pipeline** runs every 2 hours until caught up, then switches to a daily schedule
+- Both use service account keys and cron scheduling
 
 ## 📁 Folder Structure
 
 ```
 /hedera-testnet-accounts-created-analyzer
-├── index.js
-│ # Entry point of the application.
-│ # - Orchestrates the ETL flow:
-│ # 1. Determines the time window and sets up the database if needed
-│ # 2. Queries new accounts and transaction history
-│ # 3. Enriches new accounts with creation method
-│ # 4. Writes all data to BigQuery
-│ # 5. Updates the job log table with execution metadata
+├── index_accounts.js
+│ # Entry point for the accounts pipeline
+├── index_transactions.js
+│ # Entry point for the transactions pipeline
+│ # (uses accounts from `new_accounts`)
 │
 ├── config.js
 │ # Central configuration file for project-wide constants:
@@ -79,9 +78,10 @@ Automate the extraction, enrichment, and storage of Hedera Testnet account and t
 │ ├── txHistorySchema.js
 │ │ # BigQuery schema for the 'transaction_history' table:
 │ │ # - Stores all transactions related to known testnet accounts
-│ └── jobLogSchema.js
-│ # BigQuery schema for the 'job_log' table:
-│ # - Records metadata for each job run (start time, end time, status)
+│ ├── jobLogAccountsSchema.js
+│ │ # Schema for the account pipeline job log table
+│ └── jobLogTransactionsSchema.js
+│   # Schema for the transaction pipeline job log table
 │
 ├── /queries
 │ ├── getNewAccounts.js
@@ -123,7 +123,7 @@ Automate the extraction, enrichment, and storage of Hedera Testnet account and t
 │ │ # Text columns identify the transaction type name and Hedera service used
 │ │
 │ ├── updateJobLog.js
-│ │ # Appends a record to the 'job_log' table:
+│ │ # Appends a record to the correct job log table:
 │ │ # - Records start time, end time, and status ("success", "error", etc.)
 │ │
 │ └── logger.js
@@ -140,10 +140,8 @@ Automate the extraction, enrichment, and storage of Hedera Testnet account and t
 │
 ├── /github
 │   └── /workflows
-│       └── weekly-job.yml
-│           # GitHub Actions workflow file
-│           # - Runs weekly via cron
-│           # - Installs dependencies
-│           # - Writes service key
-│           # - Executes `node index.js`
+│       ├── accounts-job.yml
+│       │ # Runs the accounts pipeline
+│       └── transactions-job.yml
+│         # Runs the transactions pipeline
 ```

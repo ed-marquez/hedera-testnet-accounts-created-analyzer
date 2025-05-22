@@ -35,8 +35,9 @@ async function getTxHistoryFn(startTime, endTime, limit, offset) {
 	return data.transaction || [];
 }
 
+// Accounts are provided by the daily accounts job in the `new_accounts` table
 async function main() {
-	logger.info(`🚀 Starting Hedera data pipeline\n`);
+        logger.info(`🚀 Starting transactions pipeline\n`);
 	const tablesForPipeline = [config.TABLES.TX_HISTORY, config.TABLES.JOB_LOG];
 
 	const { startTime, endTime, isInitial } = await dbOperationsFn();
