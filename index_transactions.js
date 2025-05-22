@@ -16,23 +16,27 @@ if (config.PIPELINE_TARGET !== "TRANSACTIONS") {
 	process.exit(1);
 }
 
-async function getTxHistoryFn(startTime, endTime, limit, offset) {
-	// Fetch account IDs from new_accounts table to pass to the activity query
-	const bigquery = new (await import("@google-cloud/bigquery")).BigQuery({
-		projectId: config.PROJECT_ID,
-		// keyFilename: "./keys/bq-key.json",
-	});
-	const [rows] = await bigquery.dataset(config.DATASET_ID).table(config.TABLES.NEW_ACCOUNTS).getRows(); // Get rows from the new_accounts table
-	const accountIds = [...new Set(rows.map((row) => row.entity_id))]; // Get unique account IDs from the new_accounts table
+async function getTxHistoryFn(startTime, endTime, limit, offset, accountIds) {
+        if (!accountIds || accountIds.length === 0) {
+                logger.warn("⚠️ No account IDs found for transaction history query.");
+                return [];
+        }
 
-	if (accountIds.length === 0) {
-		logger.warn("⚠️ No account IDs found for transaction history query.");
-		return [];
-	}
+        const variables = { startTime, endTime, limit, offset, accountIds };
+        const data = await executeQueryFn(GET_TX_HISTORY_QUERY, variables);
+        return data.transaction || [];
+}
 
-	const variables = { startTime, endTime, limit, offset, accountIds };
-	const data = await executeQueryFn(GET_TX_HISTORY_QUERY, variables);
-	return data.transaction || [];
+async function fetchAccountIdsFn() {
+        const bigquery = new (await import("@google-cloud/bigquery")).BigQuery({
+                projectId: config.PROJECT_ID,
+                // keyFilename: "./keys/bq-key.json",
+        });
+        const [rows] = await bigquery
+                .dataset(config.DATASET_ID)
+                .table(config.TABLES.NEW_ACCOUNTS)
+                .getRows();
+        return [...new Set(rows.map((row) => row.entity_id))];
 }
 
 // Accounts are provided by the daily accounts job in the `new_accounts` table
@@ -53,8 +57,14 @@ async function main() {
 
 	let snapshotRowDetails = {};
 
-	try {
-		// Step 0: Create pre-job snapshots if not initial pull
+        try {
+                // Load account IDs once for the entire job
+                const accountIds = await fetchAccountIdsFn();
+
+                const getTxHistoryWithIds = (s, e, l, o) =>
+                        getTxHistoryFn(s, e, l, o, accountIds);
+
+                // Step 0: Create pre-job snapshots if not initial pull
 		if (!isInitial) {
 			// Create snapshots for all tables
 			for (const table of tablesForPipeline) {
@@ -74,8 +84,14 @@ async function main() {
 		}
 		console.log(`\n`);
 
-		// Step 2: Paginated fetch + enrich + write of transaction history
-		const countTxAdded = await queryAndWriteFn(getTxHistoryFn, config.TABLES.TX_HISTORY, startTime, endTime, enrichTransactionHistoryFn);
+                // Step 2: Paginated fetch + enrich + write of transaction history
+                const countTxAdded = await queryAndWriteFn(
+                        getTxHistoryWithIds,
+                        config.TABLES.TX_HISTORY,
+                        startTime,
+                        endTime,
+                        enrichTransactionHistoryFn
+                );
 		logger.success(`✅ Transaction history written to BigQuery\n`);
 
 		// Step 3: Validate timestamp ranges across tables if not initial pull
