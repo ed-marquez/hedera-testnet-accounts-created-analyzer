@@ -1,44 +1,44 @@
-# name: Hedera Testnet Accounts Pipeline
+name: Hedera Testnet Transactions Pipeline
 
-# on:
-#   schedule:
-#     - cron: "0 9 * * *" # Every day at 9:00 AM UTC
-#   workflow_dispatch: # Allows manual run from GitHub UI
+on:
+  schedule:
+    - cron: "0 */2 * * *" # Every 2 hours
+  workflow_dispatch: # Allows manual run from GitHub UI
 
-# jobs:
-#   run-data-pipeline:
-#     runs-on: ubuntu-latest
+jobs:
+  run-data-pipeline:
+    runs-on: ubuntu-latest
 
-#     steps:
-#       - name: 📥 Checkout code
-#         uses: actions/checkout@v3
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v3
 
-#       - name: 🟢 Set up Node.js
-#         uses: actions/setup-node@v3
-#         with:
-#           node-version: "18"
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
 
-#       - name: 🔐 Authenticate with Google Cloud
-#         uses: google-github-actions/auth@v2
-#         with:
-#           credentials_json: "${{ secrets.GOOGLE_CREDENTIALS }}"
+      - name: 🔐 Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.GOOGLE_CREDENTIALS }}"
 
-#       - name: 📦 Set up gcloud CLI (for debugging or gcloud commands)
-#         uses: google-github-actions/setup-gcloud@v2
+      - name: 📦 Set up gcloud CLI (for debugging or gcloud commands)
+        uses: google-github-actions/setup-gcloud@v2
 
-#       - name: 📦 Install dependencies
-#         run: npm install
+      - name: 📦 Install dependencies
+        run: npm install
 
-#       - name: ▶️ Run ETL script
-#         run: npm run transactions
-#         env:
-#           PIPELINE_TARGET: TRANSACTIONS
-#           PROJECT_ID: ${{ vars.PROJECT_ID }}
-#           DATASET_ID: ${{ vars.DATASET_ID }}
-#           SNAPSHOT_DATASET: ${{ vars.SNAPSHOT_DATASET }}
-#           SNAPSHOT_RETENTION_DAYS: ${{ vars.SNAPSHOT_RETENTION_DAYS }}
-#           GRAPHQL_ENDPOINT: ${{ vars.GRAPHQL_ENDPOINT }}
-#           GRAPHQL_API_KEY: ${{ secrets.GRAPHQL_API_KEY }}
-#           PAGE_SIZE: ${{ vars.PAGE_SIZE }}
-#           OFFSET: ${{ vars.OFFSET }}
-#           WINDOW_SIZE_NS: ${{ vars.WINDOW_SIZE_NS }}
+      - name: ▶️ Run ETL script
+        run: npm run transactions
+        env:
+          PIPELINE_TARGET: TRANSACTIONS
+          PROJECT_ID: ${{ vars.PROJECT_ID }}
+          DATASET_ID: ${{ vars.DATASET_ID }}
+          SNAPSHOT_DATASET: ${{ vars.SNAPSHOT_DATASET }}
+          SNAPSHOT_RETENTION_DAYS: ${{ vars.SNAPSHOT_RETENTION_DAYS }}
+          GRAPHQL_ENDPOINT: ${{ vars.GRAPHQL_ENDPOINT }}
+          GRAPHQL_API_KEY: ${{ secrets.GRAPHQL_API_KEY }}
+          PAGE_SIZE: ${{ vars.PAGE_SIZE }}
+          OFFSET: ${{ vars.OFFSET }}
+          WINDOW_SIZE_NS: ${{ vars.WINDOW_SIZE_NS }}
