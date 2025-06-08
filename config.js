@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-const DEFAULT_START_TIMESTAMP = "1706745600000000000"; // Thursday, February 1, 2024
+const DEFAULT_START_TIMESTAMP = "1735689600000000000"; // 2025 YTD: WEDNESDAY JANUARY 1, 2025
 const DEFAULT_WINDOW_SIZE_NS = String(24 * 60 * 60 * 1_000_000_000); // 24 hours in nanoseconds
 const DEFAULT_PAGE_SIZE = 10000;
 const DEFAULT_OFFSET = 0;
